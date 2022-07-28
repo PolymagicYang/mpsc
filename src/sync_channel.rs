@@ -1,7 +1,7 @@
 use crate::{HyperKey, Channel, Msg, RecvError, SendError};
 use std::fmt::Debug;
 
-pub struct SyncSender<'a, K, V>
+pub struct Sender<'a, K, V>
 where
     K: HyperKey + Send + Debug,
     V: Send + Debug
@@ -9,7 +9,7 @@ where
     pub chan: &'a Channel<K, V>
 }
 
-pub struct SyncReceiver<'a, K, V>
+pub struct Receiver<'a, K, V>
 where
     K: HyperKey + Send,
     V: Send
@@ -17,7 +17,7 @@ where
     pub chan: &'a Channel<K, V> 
 }
 
-impl<K, V> SyncReceiver<'_, K, V>
+impl<K, V> Receiver<'_, K, V>
 where
     K: HyperKey + Send + Debug,
     V: Send + Debug
@@ -27,7 +27,7 @@ where
     }
 }
 
-impl<K, V> SyncSender<'_, K, V>
+impl<K, V> Sender<'_, K, V>
 where 
     K: HyperKey + Send + Debug,
     V: Send + Debug
@@ -35,5 +35,15 @@ where
     /// a simpl wrapper for sending.
     pub fn send(&self, key: K, val: V) -> Result<(), SendError> {
         self.chan.send_sync(key, val)
+    }
+}
+
+impl<K, V> Clone for Sender<'_, K, V>
+where
+    K: HyperKey + Send + Debug,
+    V: Send + Debug
+{
+    fn clone(&self) -> Self {
+        Self { chan: self.chan.clone() }
     }
 }

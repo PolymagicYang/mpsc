@@ -57,3 +57,19 @@ fn navive_async_test() {
         assert_eq!(vec[i], receiver.recv().unwrap().val);
     }
 }
+
+#[test]
+fn naive_sync_test() {
+    let chan = Box::leak(Box::new(mpsc::Channel::<SimpleTest, usize>::new()));
+    let sender = async_channel::Sender {
+        chan
+    };
+    let receiver = async_channel::Receiver {
+        chan 
+    };
+    // simple test:
+    thread::spawn(move || {
+        sender.send(SimpleTest {}, 1).unwrap()
+    });
+    assert_eq!(1, receiver.recv().unwrap().val);
+}

@@ -31,16 +31,17 @@ where
 {
     /// Just like create a Linked-List.
     /// Init state:
-    /// Channel head ---    tail ---
-    ///                |           |
-    ///                |           |
-    ///               Node <--------    
+    /// # Channel head ---    tail ---
+    /// #                |           |
+    /// #                |           |
+    /// #               Node <--------    
     ///
     ///
-    /// Channel head ---    tail -----------
-    ///                |                   |
-    ///                |                   |
-    ///               Node ---> Node ---> null_ptr
+    /// # Channel head ---    tail -----------
+    /// #                |                   |
+    /// #                |                   |
+    /// #               Node ---> Node ---> null_ptr
+    ///
     pub fn new() -> Channel<K, V> {
         let node = Node::default();
         let node_ptr = Box::leak(Box::new(node));
