@@ -42,13 +42,18 @@ fn navive_test() {
         let out_of_order = out_of_order.clone();
         let sender = sender.clone();
         thread::spawn(move || {
-            out_of_order.lock().unwrap().push(i);
+            let mut vec = out_of_order.lock().unwrap();
             sender.send(SimpleTest {}, i).unwrap();
+            vec.push(i);
         })
     }).collect();
 
     for i in 0..1000 {
         let vec = out_of_order.lock().unwrap();
-        assert_eq!(vec[i], receiver.recv().unwrap().val)
+        if i >= vec.len() {
+            // ugly commands.
+            break
+        }
+        assert_eq!(vec[i], receiver.recv().unwrap().val);
     }
 }

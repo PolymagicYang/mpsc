@@ -3,7 +3,7 @@
 channel holds a list.
 
 1. async:   
-There is a global index to reprents the current index of the list, the sender just insert
+use tail to maintain the insertion status, the sender just insert
 the message to the and then fire and forget.
 [] -> [] -> [] -> []
 
