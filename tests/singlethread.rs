@@ -1,5 +1,3 @@
-use std::sync::mpsc::sync_channel;
-
 use mpsc::{async_channel, sync_channel};
 
 #[derive(Debug)]
