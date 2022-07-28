@@ -8,7 +8,7 @@ fn main() {
         chan: &chan 
     };
     
-    sender.send(Test {}, 1).unwrap();
+    sender.send(Test {}, 1);
     println!("{:?}", receiver.recv().unwrap());
 }
 
@@ -16,7 +16,7 @@ fn main() {
 struct Test {}
 
 impl HyperKey for Test {
-    fn collision_detect<Test>(&self, k: &Test) -> bool {
+    fn collision_detect<Test>(&self, _k: &Test) -> bool {
         true
     }
 }

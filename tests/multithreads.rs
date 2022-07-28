@@ -43,7 +43,7 @@ fn naive_async_test() {
         let sender = sender.clone();
         thread::spawn(move || {
             let mut vec = out_of_order.lock().unwrap();
-            sender.send(SimpleTest {}, i).unwrap();
+            sender.send(SimpleTest {}, i);
             vec.push(i);
         })
     }).collect();
@@ -69,7 +69,7 @@ fn naive_sync_test() {
     };
     // simple test:
     thread::spawn(move || {
-        sender.send(SimpleTest {}, 1).unwrap()
+        sender.send(SimpleTest {}, 1)
     });
     assert_eq!(1, receiver.recv().unwrap().val);
 }

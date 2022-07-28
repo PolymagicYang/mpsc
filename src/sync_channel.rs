@@ -22,6 +22,9 @@ where
     K: HyperKey + Send + Debug,
     V: Send + Debug
 {
+    /// # Errors
+    /// will return `SendError` if data structure panics in the Channel.
+    ///
     pub fn recv(&self) -> Result<Msg<K, V>, RecvError> {
         self.chan.recv_sync() 
     }
@@ -32,7 +35,9 @@ where
     K: HyperKey + Send + Debug,
     V: Send + Debug
 {
-    /// a simpl wrapper for sending.
+    /// # Errors
+    /// will return `SendError` if inner structures panics.
+    /// 
     pub fn send(&self, key: K, val: V) -> Result<(), SendError> {
         self.chan.send_sync(key, val)
     }
@@ -44,6 +49,6 @@ where
     V: Send + Debug
 {
     fn clone(&self) -> Self {
-        Self { chan: self.chan.clone() }
+        Self { chan: <&Channel<K, V>>::clone(&self.chan) }
     }
 }

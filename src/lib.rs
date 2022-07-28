@@ -10,6 +10,7 @@ pub mod sync_channel;
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicPtr, AtomicBool, Ordering};
 use std::ptr;
+use std::time::{Instant, Duration};
 
 #[derive(Debug, Clone)]
 pub struct SendError;
@@ -19,9 +20,29 @@ pub struct RecvError;
 
 /// Channel acts as a linked-list to hold the msg.
 pub struct Channel<K: HyperKey, V> {
+    /// AtomicPtr impls Send + Sync, so Channel is Send + Sync by default.
     /// head as a start point, no one could delete it.
     head: AtomicPtr<Node<K, V>>,
     tail: AtomicPtr<Node<K, V>>,
+}
+
+impl<K, V> Default for Channel<K, V>
+where 
+    K: HyperKey + Send + Debug,
+    V: Send + Debug
+{
+    fn default() -> Self {
+        let node = Node::default();
+        let node_ptr = Box::leak(Box::new(node));
+        Self {
+            head: AtomicPtr::new(
+                node_ptr
+            ),
+            tail: AtomicPtr::new(
+                node_ptr
+            )
+        }
+    }
 }
 
 impl<K, V> Channel<K, V>
@@ -40,9 +61,9 @@ where
     /// # Channel head ---    tail -----------
     /// #                |                   |
     /// #                |                   |
-    /// #               Node ---> Node ---> null_ptr
+    /// #               Node ---> Node ---> `null_ptr`
     ///
-    pub fn new() -> Channel<K, V> {
+    #[must_use]pub fn new() -> Channel<K, V> {
         let node = Node::default();
         let node_ptr = Box::leak(Box::new(node));
         Self {
@@ -56,7 +77,7 @@ where
     }
     
     /// try to occupy the tail node.
-    fn send(&self, key: K, val: V) -> Result<(), SendError> {
+    fn send(&self, key: K, val: V) {
         // try to append a new node to the Channel.
         // todo: optimize the channel appending.
         let new_node = Node {
@@ -88,7 +109,6 @@ where
         }
 
         self.tail.store(new_node, Ordering::Release);
-        Ok(())
     }
     
     fn recv(&self) -> Result<Msg<K, V>, RecvError> {
@@ -98,7 +118,7 @@ where
         };
         
         loop {
-            if head.next.load(Ordering::Acquire) == ptr::null_mut() {
+            if head.next.load(Ordering::Acquire).is_null() {
                 // block.
                 // todo: sleep.
                 continue
@@ -124,12 +144,12 @@ where
                     let temp_next = msg_node.next.load(Ordering::Acquire);
                     // send is fater than recv, so I think it's ok, but we confirm it later.
                     head.next.store(temp_next, Ordering::Release);
-                    if temp_next == ptr::null_mut() {
+                    if temp_next.is_null() {
                         self.tail.store(self.head.load(Ordering::Relaxed), Ordering::Release);
                     } 
 
                     // free the msg node.
-                    let _ = unsafe { Box::from_raw(msg_node_ptr) };
+                    let _drop = unsafe { Box::from_raw(msg_node_ptr) };
                     return Ok(msg) 
                 },
                 None => return Err(RecvError {}),
@@ -144,7 +164,7 @@ where
         };
         
         loop {
-            if head.next.load(Ordering::Acquire) == ptr::null_mut() {
+            if head.next.load(Ordering::Acquire).is_null() {
                 // block.
                 // todo: sleep.
                 continue
@@ -170,7 +190,7 @@ where
                     let temp_next = msg_node.next.load(Ordering::Acquire);
                     // send is fater than recv, so I think it's ok, but we confirm it later.
                     head.next.store(temp_next, Ordering::Release);
-                    if temp_next == ptr::null_mut() {
+                    if temp_next.is_null() {
                         self.tail.store(self.head.load(Ordering::Relaxed), Ordering::Release);
                     } 
 
@@ -215,22 +235,27 @@ where
 
         self.tail.store(new_node, Ordering::Release);
         
-        loop {
             let stored_node = unsafe {
                 &*new_node
             };
-            while !stored_node.is_destroy.load(Ordering::Acquire) {
-                // todo: sleep
+            let beginning_park = Instant::now();
+            let time_out = Duration::from_secs(5);
+
+            while !stored_node.is_destroy.load(Ordering::Acquire) { 
+                let elapsed = beginning_park.elapsed();
+                if time_out - elapsed < Duration::from_secs(0) {
+                    return Err(SendError);
+                }
+                std::hint::spin_loop();
             }
             // todo: verify the correctness.
             // difference bettween sync and async version:
             // sync: sender's duty to drop the node.
             // async: receiver's duty to drop the node.
-            let _  = Box::from(new_node);
-            break
-        }
+            let _drop  = Box::from(new_node);
         Ok(())
     }
+
 }
 
 #[derive(Debug)]
@@ -297,7 +322,7 @@ struct Filter<K: HyperKey> {
 }
 
 impl<K: HyperKey> Filter<K> {
-    fn contains(&self, k: K) -> bool {
+    fn contains(&self, k: &K) -> bool {
         self.active_keys.iter().any(|elem| k.collision_detect(elem))
     }
 }

@@ -2,6 +2,12 @@
 name = "mpsc"
 version = "0.1.0"
 edition = "2021"
+repository = "https://github.com/PolymagicYang/mpsc"
+description = "A naive key-based mpsc which avoids key collision"
+readme = "README.md"
+license = "MIT"
+keywords = ["library", "concurrency"]
+categories = ["Concurrency"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

@@ -19,13 +19,13 @@ fn navive_async_test() {
         chan: &chan 
     };
     let _ = (0..100000).map(|i| {
-        sender.send(SimpleTest {}, i).unwrap();
+        sender.send(SimpleTest {}, i);
     });
     let _ = (0..100000).map(|i| {
         assert_eq!(i, receiver.recv().unwrap().val);
     });
     let _ = (0..100000).map(|i| {
-        sender.send(SimpleTest {}, i).unwrap();
+        sender.send(SimpleTest {}, i);
         assert_eq!(i, receiver.recv().unwrap().val)
     });
 }
@@ -33,7 +33,7 @@ fn navive_async_test() {
 #[test]
 fn naive_sync_test() {
     let chan = mpsc::Channel::<SimpleTest, usize>::new();
-    let sender = sync_channel::Sender {
+    let _sender = sync_channel::Sender {
         chan: &chan
     };
     // Yeah, it blocks!
