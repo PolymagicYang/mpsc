@@ -18,14 +18,14 @@ fn navive_test() {
     let receiver = mpsc::Receiver {
         chan: &chan 
     };
-    for i in 0..100000 {
+    let _ = (0..100000).map(|i| {
         sender.send(SimpleTest {}, i).unwrap();
-    }
-    for i in 0..100000 {
+    });
+    let _ = (0..100000).map(|i| {
         assert_eq!(i, receiver.recv().unwrap().val);
-    }
-    for i in 0..100000 {
+    });
+    let _ = (0..100000).map(|i| {
         sender.send(SimpleTest {}, i).unwrap();
         assert_eq!(i, receiver.recv().unwrap().val)
-    }
+    });
 }

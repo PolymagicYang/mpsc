@@ -98,7 +98,6 @@ where
             if head.next.load(Ordering::Acquire) == ptr::null_mut() {
                 // block.
                 // todo: sleep.
-                println!("hello");
                 continue
             };
 
@@ -234,6 +233,16 @@ struct Filter<K: HyperKey> {
 impl<K: HyperKey> Filter<K> {
     fn contains(&self, k: K) -> bool {
         self.active_keys.iter().any(|elem| k.collision_detect(elem))
+    }
+}
+
+impl<K, V> Clone for Sender<'_, K, V>
+where
+    K: HyperKey + Send + Debug,
+    V: Send + Debug
+{
+    fn clone(&self) -> Self {
+        Self { chan: self.chan.clone() }
     }
 }
 
