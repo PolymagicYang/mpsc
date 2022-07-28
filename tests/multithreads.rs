@@ -11,7 +11,7 @@ impl mpsc::HyperKey for SimpleTest {
 }
 
 #[test]
-fn navive_async_test() {
+fn naive_async_test() {
     // ugly implementation.
     let chan = Box::leak(Box::new(mpsc::Channel::<SimpleTest, usize>::new()));
     let sender = async_channel::Sender {
@@ -61,10 +61,10 @@ fn navive_async_test() {
 #[test]
 fn naive_sync_test() {
     let chan = Box::leak(Box::new(mpsc::Channel::<SimpleTest, usize>::new()));
-    let sender = async_channel::Sender {
+    let sender = sync_channel::Sender {
         chan
     };
-    let receiver = async_channel::Receiver {
+    let receiver = sync_channel::Receiver {
         chan 
     };
     // simple test:
