@@ -9,11 +9,6 @@ fn main() {
     };
     
     sender.send(Test {}, 1).unwrap();
-    sender.send(Test {}, 2).unwrap();
-    sender.send(Test {}, 3).unwrap();
-    sender.send(Test {}, 4).unwrap();
-    println!("{:?}", receiver.recv().unwrap());
-    println!("{:?}", receiver.recv().unwrap());
     println!("{:?}", receiver.recv().unwrap());
 }
 

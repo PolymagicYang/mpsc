@@ -98,6 +98,7 @@ where
             if head.next.load(Ordering::Acquire) == ptr::null_mut() {
                 // block.
                 // todo: sleep.
+                println!("hello");
                 continue
             };
 
@@ -117,8 +118,12 @@ where
                     //};
                     let msg = unsafe { Box::from_raw(msg_node.data).take().unwrap() };
 
+                    let temp_next = msg_node.next.load(Ordering::Acquire);
                     // send is fater than recv, so I think it's ok, but we confirm it later.
-                    head.next.store(msg_node.next.load(Ordering::Acquire), Ordering::Release);
+                    head.next.store(temp_next, Ordering::Release);
+                    if temp_next == ptr::null_mut() {
+                        self.tail.store(self.head.load(Ordering::Relaxed), Ordering::Release);
+                    } 
                     return Ok(msg) 
                 },
                 None => return Err(RecvError {}),
@@ -167,8 +172,8 @@ pub struct Msg<K, T>
 where 
     K: HyperKey 
 {
-    key: K,
-    val: T,
+    pub key: K,
+    pub val: T,
     // true is active, else false.
     status: bool  
 }
