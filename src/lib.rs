@@ -4,9 +4,11 @@
     clippy::cargo
 )]
 
-use std::cell::UnsafeCell;
+pub mod async_channel;
+pub mod sync_channel;
+
 use std::fmt::Debug;
-use std::sync::atomic::{AtomicPtr, AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicPtr, AtomicBool, Ordering};
 use std::ptr;
 
 #[derive(Debug, Clone)]
@@ -101,8 +103,9 @@ where
                 continue
             };
 
+            let msg_node_ptr = head.next.load(Ordering::Acquire);
             let msg_node = unsafe {
-                &*head.next.load(Ordering::Acquire)
+                &*msg_node_ptr
             };
             
             let msg_opt = unsafe { &*msg_node.data };
@@ -123,11 +126,109 @@ where
                     if temp_next == ptr::null_mut() {
                         self.tail.store(self.head.load(Ordering::Relaxed), Ordering::Release);
                     } 
+
+                    // free the msg node.
+                    let _ = unsafe { Box::from_raw(msg_node_ptr) };
                     return Ok(msg) 
                 },
                 None => return Err(RecvError {}),
             }
         }
+    }
+    
+    fn recv_sync(&self) -> Result<Msg<K, V>, RecvError> {
+        let head = unsafe { 
+            // only one thread modifies the head, so it's not important to choose a right ordering.
+            &*self.head.load(Ordering::Relaxed) 
+        };
+        
+        loop {
+            if head.next.load(Ordering::Acquire) == ptr::null_mut() {
+                // block.
+                // todo: sleep.
+                continue
+            };
+
+            let msg_node_ptr = head.next.load(Ordering::Acquire);
+            let msg_node = unsafe {
+                &*msg_node_ptr
+            };
+            
+            let msg_opt = unsafe { &*msg_node.data };
+            
+            match msg_opt {
+                Some(_) => { 
+                    // todo: more functional format.
+                    //
+                    // let msg = unsafe {
+                        // take the value out.
+                    //    Box::from_raw(msg_node.data.get()).unwrap()
+                    //};
+                    let msg = unsafe { Box::from_raw(msg_node.data).take().unwrap() };
+
+                    let temp_next = msg_node.next.load(Ordering::Acquire);
+                    // send is fater than recv, so I think it's ok, but we confirm it later.
+                    head.next.store(temp_next, Ordering::Release);
+                    if temp_next == ptr::null_mut() {
+                        self.tail.store(self.head.load(Ordering::Relaxed), Ordering::Release);
+                    } 
+
+                    // free the msg node.
+                    msg_node.is_destroy.store(true, Ordering::Release);
+                    return Ok(msg) 
+                },
+                None => return Err(RecvError {}),
+            }
+        }
+    }
+    
+    fn send_sync(&self, key: K, val: V) -> Result<(), SendError> {
+        // naive implementation.
+        let new_node = Node {
+            next: AtomicPtr::new(ptr::null_mut()),
+            data: Box::into_raw(Box::new(Some(Msg {
+                key,
+                val,
+                status: false 
+            }))),
+            is_destroy: AtomicBool::new(false),
+            is_hold: AtomicBool::new(false)
+        };
+        let new_node = Box::into_raw(Box::new(new_node));
+
+        let mut tail = unsafe { 
+            &*(self.tail.load(Ordering::Acquire))
+        };
+
+        let expected: *mut Node<K, V> = ptr::null_mut();
+
+        loop {
+            // can not depend on the tail, so AcqRel.
+            match tail.next.compare_exchange_weak(expected, new_node, Ordering::AcqRel, Ordering::Relaxed) {
+                // append successully.
+                Ok(_) => break,
+                // curr is not null.
+                Err(curr) => tail = unsafe { &*curr }
+            }
+        }
+
+        self.tail.store(new_node, Ordering::Release);
+        
+        loop {
+            let stored_node = unsafe {
+                &*new_node
+            };
+            while !stored_node.is_destroy.load(Ordering::Acquire) {
+                // todo: sleep
+            }
+            // todo: verify the correctness.
+            // difference bettween sync and async version:
+            // sync: sender's duty to drop the node.
+            // async: receiver's duty to drop the node.
+            let _  = Box::from(new_node);
+            break
+        }
+        Ok(())
     }
 }
 
@@ -177,42 +278,6 @@ where
     status: bool  
 }
 
-pub struct Sender<'a, K, V>
-where
-    K: HyperKey + Send,
-    V: Send
-{
-    pub chan: &'a Channel<K, V>
-}
-
-pub struct Receiver<'a, K, V> 
-where 
-    K: HyperKey + Send,
-    V: Send 
-{
-    pub chan: &'a Channel<K, V>
-}
-
-impl<K, V> Sender<'_, K, V>
-where 
-    K: HyperKey + Send + Debug,
-    V: Send + Debug
-{
-    /// a simpl wrapper for sending.
-    pub fn send(&self, key: K, val: V) -> Result<(), SendError> {
-        self.chan.send(key, val)
-    }
-}
-
-impl<K, V> Receiver<'_, K, V>
-where
-    K: HyperKey + Send + Debug,
-    V: Send + Debug
-{
-    pub fn recv(&self) -> Result<Msg<K, V>, RecvError> {
-        self.chan.recv() 
-    }
-}
 
 fn filter_fn() -> bool {
     todo!("try to implement a user-defined fn")
@@ -236,14 +301,5 @@ impl<K: HyperKey> Filter<K> {
     }
 }
 
-impl<K, V> Clone for Sender<'_, K, V>
-where
-    K: HyperKey + Send + Debug,
-    V: Send + Debug
-{
-    fn clone(&self) -> Self {
-        Self { chan: self.chan.clone() }
-    }
-}
 
 

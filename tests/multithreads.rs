@@ -1,4 +1,4 @@
-use mpsc;
+use mpsc::{async_channel, sync_channel};
 use std::thread;
 
 #[derive(Debug)]
@@ -11,13 +11,13 @@ impl mpsc::HyperKey for SimpleTest {
 }
 
 #[test]
-fn navive_test() {
+fn navive_async_test() {
     // ugly implementation.
     let chan = Box::leak(Box::new(mpsc::Channel::<SimpleTest, usize>::new()));
-    let sender = mpsc::Sender {
+    let sender = async_channel::Sender {
         chan
     };
-    let receiver = mpsc::Receiver {
+    let receiver = async_channel::Receiver {
         chan 
     };
 

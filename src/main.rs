@@ -1,4 +1,4 @@
-use mpsc::{Channel, Sender, HyperKey, Receiver}; 
+use mpsc::{Channel, async_channel::Sender, HyperKey, async_channel::Receiver}; 
 fn main() {
     let chan = Channel::<Test, usize>::new();
     let sender = Sender {

@@ -1,4 +1,4 @@
-use mpsc;
+use mpsc::{async_channel, sync_channel};
 
 #[derive(Debug)]
 struct SimpleTest {}
@@ -10,12 +10,12 @@ impl mpsc::HyperKey for SimpleTest {
 }
 
 #[test]
-fn navive_test() {
+fn navive_async_test() {
     let chan = mpsc::Channel::<SimpleTest, usize>::new();
-    let sender = mpsc::Sender {
+    let sender = async_channel::Sender {
         chan: &chan
     };
-    let receiver = mpsc::Receiver {
+    let receiver = async_channel::Receiver {
         chan: &chan 
     };
     let _ = (0..100000).map(|i| {
@@ -28,4 +28,9 @@ fn navive_test() {
         sender.send(SimpleTest {}, i).unwrap();
         assert_eq!(i, receiver.recv().unwrap().val)
     });
+}
+
+#[test]
+fn naive_sync_test() {
+
 }
