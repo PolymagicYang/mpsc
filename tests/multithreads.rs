@@ -21,21 +21,34 @@ fn navive_test() {
         chan 
     };
 
-    let _: Vec<_> = (0..100).map(|i| {
+    let _: Vec<_> = (0..1000).map(|i| {
+        // sequential test.
         let sender = sender.clone();
+
         thread::spawn(move || {
             sender.send(SimpleTest {}, i)
         })
         .join()
         .unwrap()
     }).collect();
-        
-    let _: Vec<_> = (0..100).map(|i| {
+    
+    let _: Vec<_> = (0..1000).map(|i| {
         assert_eq!(i, receiver.recv().unwrap().val);
     }).collect();
- 
-    for i in 0..100 {
-        sender.send(SimpleTest {}, i).unwrap();
-        assert_eq!(i, receiver.recv().unwrap().val)
+    
+    let out_of_order = std::sync::Arc::new(std::sync::Mutex::new(vec![]));
+
+    let _: Vec<_> = (0..1000).map(|i| {
+        let out_of_order = out_of_order.clone();
+        let sender = sender.clone();
+        thread::spawn(move || {
+            out_of_order.lock().unwrap().push(i);
+            sender.send(SimpleTest {}, i).unwrap();
+        })
+    }).collect();
+
+    for i in 0..1000 {
+        let vec = out_of_order.lock().unwrap();
+        assert_eq!(vec[i], receiver.recv().unwrap().val)
     }
 }
