@@ -1,4 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::{
+    sync::{self, Arc, Mutex},
+    thread,
+};
 
 use crate::HyperKey;
 
@@ -26,13 +29,18 @@ impl<K: HyperKey + Clone> Filter<K> {
         self.active_keys.lock().unwrap().append(&mut Vec::from(k));
     }
 
-    pub(crate) fn pop(&self, k: &K) {
+    pub(crate) fn pop(&self, k: &[K]) {
         let mut guard = self.active_keys.lock().unwrap();
-        let index = guard
+        let _indexes: Vec<_> = k
             .iter()
-            .position(|elem| elem.collision_detect(k))
-            .unwrap();
-        guard.remove(index);
+            .map(|key| {
+                let index = guard
+                    .iter()
+                    .position(|elem| elem.collision_detect(key))
+                    .unwrap();
+                guard.remove(index);
+            })
+            .collect();
     }
 }
 
@@ -58,24 +66,89 @@ where
     }
 }
 
+#[derive(Clone)]
+struct SimpleKey {
+    key: usize,
+}
+
+impl HyperKey for SimpleKey {
+    fn collision_detect(&self, other: &Self) -> bool {
+        self.key == other.key
+    }
+}
+
 #[test]
-fn filter_test() {
-    #[derive(Clone)]
-    struct SimpleKey {
-        key: usize,
-    }
-
-    impl HyperKey for SimpleKey {
-        fn collision_detect(&self, other: &Self) -> bool {
-            if self.key == other.key {
-                true
-            } else {
-                false
-            }
-        }
-    }
-
+fn single_test() {
     let filter = Filter::default();
-    let k1 = SimpleKey { key: 1 };
-    filter.put(&vec![k1]);
+    let mut keys = vec![];
+    for i in 1..=100 {
+        keys.push(SimpleKey { key: i as usize });
+    }
+    filter.put(&keys);
+    for i in 1..=100 {
+        assert!(filter.contains(&vec![SimpleKey { key: i as usize }]));
+    }
+}
+
+#[test]
+fn multikeys_test() {
+    let filter = Filter::default();
+    let mut keys = vec![];
+    for i in 1..=100 {
+        keys.push(SimpleKey { key: i as usize });
+    }
+    filter.put(&keys);
+
+    for i in 1..=100 {
+        let mut temp_keys = vec![];
+        for j in 1..=i {
+            temp_keys.push(SimpleKey { key: j as usize });
+        }
+        assert!(filter.contains(&temp_keys));
+    }
+}
+
+#[test]
+fn pop_test() {
+    let filter = Filter::default();
+    let mut keys = vec![];
+    for i in 1..=100 {
+        keys.push(SimpleKey { key: i as usize });
+    }
+    filter.put(&keys);
+
+    // pop one.
+    for i in 1..=100 {
+        filter.pop(&vec![SimpleKey { key: i as usize }]);
+        assert!(!filter.contains(&vec![SimpleKey { key: i as usize }]));
+    }
+
+    // pop many.
+    filter.put(&keys);
+    for i in (1..=100).step_by(10) {
+        let mut temp = vec![];
+        for j in i..i + 10 {
+            temp.push(SimpleKey { key: j as usize });
+        }
+        filter.pop(&temp);
+        assert!(!filter.contains(&temp), "failed to pop many");
+    }
+}
+
+#[test]
+fn multithreads_test() {
+    let filter = Filter::default();
+
+    let mut joins = vec![];
+    for i in 1..=10 {
+        let filter = filter.clone();
+        joins.push(std::thread::spawn(move || {
+            filter.put(&vec![SimpleKey { key: i as usize }])
+        }));
+    }
+    let _join: Vec<_> = joins.into_iter().map(|handler| handler.join()).collect();
+    
+    for i in 1..=10 {
+        assert!(filter.contains(&vec![SimpleKey { key: i as usize }]));
+    }
 }

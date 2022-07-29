@@ -1,4 +1,4 @@
-use crate::{Channel, HyperKey, Msg, RecvError, SendError};
+use crate::{Channel, HyperKey, Msg, RecvError};
 use std::fmt::Debug;
 
 pub struct Sender<'a, K, V>

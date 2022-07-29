@@ -276,7 +276,7 @@ where
     K: HyperKey + Clone,
 {
     fn drop(&mut self) {
-        let _drop: Vec<_> = self.keys.iter().map(|elem| self.filter.pop(elem)).collect();
+        self.filter.pop(&self.keys);
     }
 }
 
