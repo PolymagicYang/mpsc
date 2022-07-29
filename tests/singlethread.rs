@@ -12,12 +12,8 @@ impl mpsc::HyperKey for SimpleTest {
 #[test]
 fn navive_async_test() {
     let chan = mpsc::Channel::<SimpleTest, usize>::new();
-    let sender = async_channel::Sender {
-        chan: &chan
-    };
-    let receiver = async_channel::Receiver {
-        chan: &chan 
-    };
+    let sender = async_channel::Sender { chan: &chan };
+    let receiver = async_channel::Receiver { chan: &chan };
     let _ = (0..100000).map(|i| {
         sender.send(SimpleTest {}, i);
     });
@@ -33,9 +29,7 @@ fn navive_async_test() {
 #[test]
 fn naive_sync_test() {
     let chan = mpsc::Channel::<SimpleTest, usize>::new();
-    let _sender = sync_channel::Sender {
-        chan: &chan
-    };
+    let _sender = sync_channel::Sender { chan: &chan };
     // Yeah, it blocks!
     // sender.send(SimpleTest {}, 1).unwrap();
 }
