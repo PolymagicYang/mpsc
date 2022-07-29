@@ -153,3 +153,33 @@ fn naive_sync_test() {
     thread::spawn(move || sender.send(vec![SimpleTest {}], 1));
     assert_eq!(1, receiver.recv().unwrap().val);
 }
+
+#[test]
+fn sync_simplkey_test() {
+    let chan = Box::leak(Box::new(mpsc::Channel::<UsizeTest, usize>::new()));
+    let sender = sync_channel::Sender { chan };
+    let receiver = sync_channel::Receiver { chan };
+
+    let order = Arc::new(Mutex::new(vec![]));
+    let test_cases = vec![2, 2, 3, 1, 3, 6, 7, 8];
+    for elem in test_cases {
+        let sender = sender.clone();
+        let order = order.clone();
+        let _handle = thread::spawn(move || {
+            sender.send(vec![UsizeTest { key: elem }], elem).unwrap();
+            order.lock().unwrap().push(elem);
+        });
+    }
+
+    let mut results = vec![];
+    for _ in 0..6 {
+        results.push(receiver.recv().unwrap());
+    }
+
+    let mut hash_set = HashSet::new();
+    for i in 0..6 {
+        hash_set.insert(results[i].val);
+    }
+    // make sure no collision.
+    assert_eq!(hash_set.len(), results.len());
+}

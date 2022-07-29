@@ -9,6 +9,8 @@ use std::ptr;
 use std::sync::atomic::{AtomicBool, AtomicPtr, Ordering};
 use std::time::{Duration, Instant};
 
+const TIME_OUT: u64 = 20;
+
 #[derive(Debug, Clone)]
 pub struct SendError;
 
@@ -208,7 +210,7 @@ where
 
         let stored_node = unsafe { &*new_node };
         let beginning_park = Instant::now();
-        let time_out = Duration::from_secs(5);
+        let time_out = Duration::from_secs(TIME_OUT);
 
         while !stored_node.is_destroy.load(Ordering::SeqCst) {
             let elapsed = beginning_park.elapsed();
