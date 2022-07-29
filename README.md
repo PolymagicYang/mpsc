@@ -1,16 +1,16 @@
 # Key-based mpsc.
 
-channel holds a list.
+Key-based mpsc provides a mpsc unbouned channel, with keys collision detection.
 
-1. async:   
-use tail to maintain the insertion status, the sender just insert
-the message to the and then fire and forget.
-[] -> [] -> [] -> []
+**NOTE: key-based mpsc is on the early stage, security issue has a lot and the performence is bad, don't use it in production environment.**
 
-2. sync  
-put a additional wake into the node, after the consumer consumes the msg, then wake the sender up.
+It uses a simple Linked List struture to implement a lock-free multiple producer, single consumer channel. 
 
-3. msg drop:
-before inserting the message into the linked-list, install a collision-filter to filter the msg (filter fn/trait is defined by the user), after the msg is dropped, notify the filter to change the filter.
+### How this channel works
+Initially, we have a head which points to a Linked List sentinel node, 
 
-4. Order: Filter > FIFO
+
+
+add examples.
+more: GC, free on read, timer clean up, loom tests.
+Now: free after dropping.

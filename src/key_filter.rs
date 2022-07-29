@@ -1,7 +1,4 @@
-use std::{
-    sync::{self, Arc, Mutex},
-    thread,
-};
+use std::sync::{Arc, Mutex};
 
 use crate::HyperKey;
 

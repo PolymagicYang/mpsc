@@ -185,7 +185,7 @@ where
         };
         let new_node = Box::into_raw(Box::new(new_node));
 
-        let mut tail = unsafe { &*(self.tail.load(Ordering::Acquire)) };
+        let mut tail = unsafe { &*(self.tail.load(Ordering::SeqCst)) };
 
         let expected: *mut Node<K, V> = ptr::null_mut();
 
@@ -194,7 +194,7 @@ where
             match tail.next.compare_exchange_weak(
                 expected,
                 new_node,
-                Ordering::AcqRel,
+                Ordering::SeqCst,
                 Ordering::Relaxed,
             ) {
                 // append successully.
@@ -204,13 +204,13 @@ where
             }
         }
 
-        self.tail.store(new_node, Ordering::Release);
+        self.tail.store(new_node, Ordering::SeqCst);
 
         let stored_node = unsafe { &*new_node };
         let beginning_park = Instant::now();
         let time_out = Duration::from_secs(5);
 
-        while !stored_node.is_destroy.load(Ordering::Acquire) {
+        while !stored_node.is_destroy.load(Ordering::SeqCst) {
             let elapsed = beginning_park.elapsed();
             if time_out - elapsed < Duration::from_secs(0) {
                 return Err(SendError);
@@ -287,6 +287,18 @@ where
     }
 }
 
-pub trait Detector {}
-
 // todo: impl Drop for Channel to release memory.
+impl<K, V> Drop for Channel<K, V>
+where
+    K: HyperKey + Clone,
+{
+    /// This drop is dangerous.
+    fn drop(&mut self) {
+        let head = unsafe { Box::from_raw(self.head.load(Ordering::Relaxed)) };
+        let mut next = head.next.load(Ordering::SeqCst);
+        while !next.is_null() {
+            let drop = unsafe { Box::from_raw(next) };
+            next = drop.next.load(Ordering::SeqCst);
+        }
+    }
+}
