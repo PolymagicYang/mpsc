@@ -8,23 +8,29 @@ pub(crate) struct Filter<K: HyperKey + Clone> {
 }
 
 impl<K: HyperKey + Clone> Filter<K> {
-    fn contains(&self, k: &K) -> bool {
-        self.active_keys
-            .lock()
-            .unwrap()
-            .iter()
-            .any(|elem| k.collision_detect(elem))
+    pub(crate) fn contains(&self, k: &Vec<K>) -> bool {
+        let res: Vec<bool> = (0..k.len())
+            .map(|index| {
+                self.active_keys
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .any(|elem| k[index].collision_detect(elem))
+            })
+            .collect();
+
+        res.iter().any(|elem| *elem)
     }
 
-    fn put(&self, k: &K) {
-        self.active_keys.lock().unwrap().push(k.clone());
+    pub(crate) fn put(&self, k: &[K]) {
+        self.active_keys.lock().unwrap().append(&mut Vec::from(k));
     }
 
-    fn pop(&self, k: &K) {
+    pub(crate) fn pop(&self, k: &K) {
         let mut guard = self.active_keys.lock().unwrap();
         let index = guard
             .iter()
-            .position(|elem| elem.collision_detect(k.clone()))
+            .position(|elem| elem.collision_detect(k))
             .unwrap();
         guard.remove(index);
     }
@@ -50,4 +56,26 @@ where
             active_keys: self.active_keys.clone(),
         }
     }
+}
+
+#[test]
+fn filter_test() {
+    #[derive(Clone)]
+    struct SimpleKey {
+        key: usize,
+    }
+
+    impl HyperKey for SimpleKey {
+        fn collision_detect(&self, other: &Self) -> bool {
+            if self.key == other.key {
+                true
+            } else {
+                false
+            }
+        }
+    }
+
+    let filter = Filter::default();
+    let k1 = SimpleKey { key: 1 };
+    filter.put(&vec![k1]);
 }

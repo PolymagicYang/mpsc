@@ -5,7 +5,7 @@ use std::thread;
 struct SimpleTest {}
 
 impl mpsc::HyperKey for SimpleTest {
-    fn collision_detect<Test>(&self, _: Test) -> bool {
+    fn collision_detect(&self, _: &SimpleTest) -> bool {
         true
     }
 }
@@ -22,7 +22,7 @@ fn naive_async_test() {
             // sequential test.
             let sender = sender.clone();
 
-            thread::spawn(move || sender.send(SimpleTest {}, i))
+            thread::spawn(move || sender.send(vec![SimpleTest {}], i))
                 .join()
                 .unwrap()
         })
@@ -42,7 +42,7 @@ fn naive_async_test() {
             let sender = sender.clone();
             thread::spawn(move || {
                 let mut vec = out_of_order.lock().unwrap();
-                sender.send(SimpleTest {}, i);
+                sender.send(vec![SimpleTest {}], i);
                 vec.push(i);
             })
         })
@@ -64,6 +64,6 @@ fn naive_sync_test() {
     let sender = sync_channel::Sender { chan };
     let receiver = sync_channel::Receiver { chan };
     // simple test:
-    thread::spawn(move || sender.send(SimpleTest {}, 1));
+    thread::spawn(move || sender.send(vec![SimpleTest {}], 1));
     assert_eq!(1, receiver.recv().unwrap().val);
 }

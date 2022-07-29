@@ -25,8 +25,8 @@ where
     /// # Errors
     /// will return `SendError` if data structure panics in the Channel.
     ///
-    pub fn send(&self, key: K, val: V) {
-        self.chan.send(key, val);
+    pub fn send(&self, keys: Vec<K>, val: V) {
+        self.chan.send(keys, val);
     }
 }
 

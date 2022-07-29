@@ -4,7 +4,7 @@ use mpsc::{async_channel, sync_channel};
 struct SimpleTest {}
 
 impl mpsc::HyperKey for SimpleTest {
-    fn collision_detect<Test>(&self, _: Test) -> bool {
+    fn collision_detect(&self, _: &SimpleTest) -> bool {
         true
     }
 }
@@ -15,13 +15,13 @@ fn navive_async_test() {
     let sender = async_channel::Sender { chan: &chan };
     let receiver = async_channel::Receiver { chan: &chan };
     let _ = (0..100000).map(|i| {
-        sender.send(SimpleTest {}, i);
+        sender.send(vec![SimpleTest {}], i);
     });
     let _ = (0..100000).map(|i| {
         assert_eq!(i, receiver.recv().unwrap().val);
     });
     let _ = (0..100000).map(|i| {
-        sender.send(SimpleTest {}, i);
+        sender.send(vec![SimpleTest {}], i);
         assert_eq!(i, receiver.recv().unwrap().val)
     });
 }

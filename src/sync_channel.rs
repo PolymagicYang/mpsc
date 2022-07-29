@@ -38,8 +38,8 @@ where
     /// # Errors
     /// will return `SendError` if inner structures panics.
     ///
-    pub fn send(&self, key: K, val: V) -> Result<(), SendError> {
-        self.chan.send_sync(key, val)
+    pub fn send(&self, keys: Vec<K>, val: V) -> Result<(), SendError> {
+        self.chan.send_sync(keys, val)
     }
 }
 
