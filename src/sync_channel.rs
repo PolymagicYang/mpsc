@@ -3,7 +3,7 @@ use std::fmt::Debug;
 
 pub struct Sender<'a, K, V>
 where
-    K: HyperKey + Send + Debug,
+    K: HyperKey + Send + Debug + Clone,
     V: Send + Debug,
 {
     pub chan: &'a Channel<K, V>,
@@ -11,7 +11,7 @@ where
 
 pub struct Receiver<'a, K, V>
 where
-    K: HyperKey + Send,
+    K: HyperKey + Send + Clone,
     V: Send,
 {
     pub chan: &'a Channel<K, V>,
@@ -19,7 +19,7 @@ where
 
 impl<K, V> Receiver<'_, K, V>
 where
-    K: HyperKey + Send + Debug,
+    K: HyperKey + Send + Debug + Clone,
     V: Send + Debug,
 {
     /// # Errors
@@ -32,7 +32,7 @@ where
 
 impl<K, V> Sender<'_, K, V>
 where
-    K: HyperKey + Send + Debug,
+    K: HyperKey + Send + Debug + Clone,
     V: Send + Debug,
 {
     /// # Errors
@@ -45,7 +45,7 @@ where
 
 impl<K, V> Clone for Sender<'_, K, V>
 where
-    K: HyperKey + Send + Debug,
+    K: HyperKey + Send + Debug + Clone,
     V: Send + Debug,
 {
     fn clone(&self) -> Self {

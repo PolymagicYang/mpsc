@@ -1,6 +1,7 @@
 #![deny(clippy::all, clippy::pedantic, clippy::cargo)]
 
 pub mod async_channel;
+pub mod key_filter;
 pub mod sync_channel;
 
 use std::fmt::Debug;
@@ -15,16 +16,20 @@ pub struct SendError;
 pub struct RecvError;
 
 /// Channel acts as a linked-list to hold the msg.
-pub struct Channel<K: HyperKey, V> {
+pub struct Channel<K, V>
+where
+    K: Clone + HyperKey,
+{
     /// AtomicPtr impls Send + Sync, so Channel is Send + Sync by default.
     /// head as a start point, no one could delete it.
     head: AtomicPtr<Node<K, V>>,
     tail: AtomicPtr<Node<K, V>>,
+    filter: key_filter::Filter<K>,
 }
 
 impl<K, V> Default for Channel<K, V>
 where
-    K: HyperKey + Send + Debug,
+    K: HyperKey + Send + Debug + Clone,
     V: Send + Debug,
 {
     fn default() -> Self {
@@ -33,13 +38,14 @@ where
         Self {
             head: AtomicPtr::new(node_ptr),
             tail: AtomicPtr::new(node_ptr),
+            filter: key_filter::Filter::default(),
         }
     }
 }
 
 impl<K, V> Channel<K, V>
 where
-    K: HyperKey + Send + Debug,
+    K: HyperKey + Send + Debug + Clone,
     V: Send + Debug,
 {
     /// Just like create a Linked-List.
@@ -62,6 +68,7 @@ where
         Self {
             head: AtomicPtr::new(node_ptr),
             tail: AtomicPtr::new(node_ptr),
+            filter: key_filter::Filter::default(),
         }
     }
 
@@ -74,7 +81,7 @@ where
             data: Box::into_raw(Box::new(Some(Msg {
                 key,
                 val,
-                status: false,
+                filter: self.filter.clone(),
             }))),
             is_destroy: AtomicBool::new(false),
             is_hold: AtomicBool::new(false),
@@ -200,7 +207,7 @@ where
             data: Box::into_raw(Box::new(Some(Msg {
                 key,
                 val,
-                status: false,
+                filter: self.filter.clone(),
             }))),
             is_destroy: AtomicBool::new(false),
             is_hold: AtomicBool::new(false),
@@ -251,7 +258,7 @@ where
 #[derive(Debug)]
 struct Node<K, V>
 where
-    K: HyperKey,
+    K: HyperKey + Clone,
 {
     /// Node needs to be shared across the thread boundary, so the AtomicOpt is nessessary.
     next: AtomicPtr<Node<K, V>>,
@@ -267,7 +274,10 @@ where
     is_hold: AtomicBool,
 }
 
-impl<K: HyperKey, V> Default for Node<K, V> {
+impl<K, V> Default for Node<K, V>
+where
+    K: Clone + HyperKey,
+{
     fn default() -> Self {
         Self {
             next: AtomicPtr::new(ptr::null_mut()),
@@ -280,37 +290,23 @@ impl<K: HyperKey, V> Default for Node<K, V> {
 
 pub trait HyperKey {
     // todo: add macro support.
-    fn collision_detect<K>(&self, k: &K) -> bool;
+    fn collision_detect<K>(&self, k: K) -> bool;
 }
 
 #[derive(Debug)]
 pub struct Msg<K, T>
 where
-    K: HyperKey,
+    K: HyperKey + Clone,
 {
     pub key: K,
     pub val: T,
     // true is active, else false.
-    status: bool,
-}
-
-fn filter_fn() -> bool {
-    todo!("try to implement a user-defined fn")
+    filter: key_filter::Filter<K>,
 }
 
 impl<K, V> Drop for Msg<K, V>
 where
-    K: HyperKey,
+    K: HyperKey + Clone,
 {
     fn drop(&mut self) {}
-}
-
-struct Filter<K: HyperKey> {
-    active_keys: Vec<K>,
-}
-
-impl<K: HyperKey> Filter<K> {
-    fn contains(&self, k: &K) -> bool {
-        self.active_keys.iter().any(|elem| k.collision_detect(elem))
-    }
 }

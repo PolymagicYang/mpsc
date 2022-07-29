@@ -8,11 +8,11 @@ fn main() {
     println!("{:?}", receiver.recv().unwrap());
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Test {}
 
 impl HyperKey for Test {
-    fn collision_detect<Test>(&self, _k: &Test) -> bool {
+    fn collision_detect<Test>(&self, _k: Test) -> bool {
         true
     }
 }

@@ -1,11 +1,11 @@
 use mpsc::{async_channel, sync_channel};
 use std::thread;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct SimpleTest {}
 
 impl mpsc::HyperKey for SimpleTest {
-    fn collision_detect<Test>(&self, _: &Test) -> bool {
+    fn collision_detect<Test>(&self, _: Test) -> bool {
         true
     }
 }
