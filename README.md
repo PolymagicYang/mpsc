@@ -1,4 +1,4 @@
-## just a initial test.
+# Key-based mpsc.
 
 channel holds a list.
 
