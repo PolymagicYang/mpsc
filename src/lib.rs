@@ -115,25 +115,26 @@ where
             // only one thread modifies the head, so it's not important to choose a right ordering.
             &*self.head.load(Ordering::SeqCst)
         };
-        let mut curr_node = head;
+
+        while head.next.load(Ordering::SeqCst).is_null() {
+            // spin
+        }
+
+        let mut curr_node = unsafe { &*head.next.load(Ordering::SeqCst) };
 
         loop {
-            if curr_node.next.load(Ordering::SeqCst).is_null() {
-                // block.
-                // todo: sleep.
-                continue;
-            };
-
-            let msg_node_ptr = curr_node.next.load(Ordering::Acquire);
-            let msg_node = unsafe { &*msg_node_ptr };
-
-            if msg_node.is_destroy.load(Ordering::SeqCst) {
+            if curr_node.is_destroy.load(Ordering::SeqCst) {
                 // try to destroy the node.
-                curr_node = msg_node;
+                // 1. check next, if next is null, return to the head.next
+                // 2. next is not null, curr becomes curr.next
+                if curr_node.next.load(Ordering::SeqCst).is_null() {
+                    return Err(RecvError);
+                }
+                curr_node = unsafe { &*curr_node.next.load(Ordering::SeqCst) };
                 continue;
             }
 
-            let msg_opt = unsafe { &*msg_node.data };
+            let msg_opt = unsafe { &*curr_node.data };
 
             match msg_opt {
                 Some(_) => {
@@ -143,16 +144,22 @@ where
                     // take the value out.
                     //    Box::from_raw(msg_node.data.get()).unwrap()
 
-                    let msg = unsafe { Box::from_raw(msg_node.data).take().unwrap() };
+                    let msg = unsafe { Box::from_raw(curr_node.data).unwrap() };
 
                     if self.filter.contains(&msg.keys) {
-                        curr_node = msg_node;
+                        Box::into_raw(Box::new(msg));
+                        if curr_node.next.load(Ordering::SeqCst).is_null() {
+                            // collisions are detected, and no more avaliable msg can be read.
+                            return Err(RecvError);
+                        }
+                        curr_node = unsafe { &*curr_node.next.load(Ordering::SeqCst) };
+                        // avoids double free.
                         continue;
                     }
 
-                    msg_node.is_destroy.store(true, Ordering::SeqCst);
-
+                    curr_node.is_destroy.store(true, Ordering::SeqCst);
                     self.filter.put(&msg.keys);
+
                     return Ok(msg);
                 }
                 None => return Err(RecvError {}),
@@ -281,3 +288,5 @@ where
 }
 
 pub trait Detector {}
+
+// todo: impl Drop for Channel to release memory.

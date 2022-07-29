@@ -147,7 +147,7 @@ fn multithreads_test() {
         }));
     }
     let _join: Vec<_> = joins.into_iter().map(|handler| handler.join()).collect();
-    
+
     for i in 1..=10 {
         assert!(filter.contains(&vec![SimpleKey { key: i as usize }]));
     }

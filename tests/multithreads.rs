@@ -4,9 +4,20 @@ use std::thread;
 #[derive(Debug, Clone)]
 struct SimpleTest {}
 
+#[derive(Debug, Clone)]
+struct UsizeTest {
+    key: usize,
+}
+
 impl mpsc::HyperKey for SimpleTest {
     fn collision_detect(&self, _: &SimpleTest) -> bool {
         true
+    }
+}
+
+impl mpsc::HyperKey for UsizeTest {
+    fn collision_detect(&self, other: &Self) -> bool {
+        self.key == other.key
     }
 }
 
@@ -56,6 +67,13 @@ fn naive_async_test() {
         }
         assert_eq!(vec[i], receiver.recv().unwrap().val);
     }
+}
+
+#[test]
+fn async_simple_key_test() {
+    let chan = Box::leak(Box::new(mpsc::Channel::<UsizeTest, usize>::new()));
+    let sender = async_channel::Sender { chan };
+    let receiver = async_channel::Receiver { chan };
 }
 
 #[test]
