@@ -14,13 +14,19 @@ jobs:
     name: Test Suite
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
         with:
           profile: minimal
-          toolchain: ${{ env.CI_RUST_TOOLCHAIN }}
+          toolchain: stable
           override: true
-      - uses: actions-rs/cargo@v1
+
+      - name: Run cargo test
+        uses: actions-rs/cargo@v1
+        continue-on-error: true  # WARNING: only for this example, remove it!
         with:
           command: test
   
